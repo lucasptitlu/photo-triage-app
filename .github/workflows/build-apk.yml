@@ -1,7 +1,16 @@
 name: Build APK
 on:
   push:
+    paths:
+      - 'app/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - '.github/workflows/build-apk.yml'
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,10 +26,8 @@ jobs:
       - name: Find project folder
         id: proj
         run: |
-          echo "Android SDK: $ANDROID_HOME"
-          echo "Files in repository:"; find . -path ./.git -prune -o -type f -print | head -50
           f=$(find . -name settings.gradle -not -path './.git/*' | head -1)
-          if [ -z "$f" ]; then echo "::error::settings.gradle not found - the project files were not uploaded"; exit 1; fi
+          if [ -z "$f" ]; then echo "::error::settings.gradle not found"; exit 1; fi
           echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
       - name: Build debug APK
         working-directory: ${{ steps.proj.outputs.dir }}
@@ -29,3 +36,15 @@ jobs:
         with:
           name: PhotoTriage-apk
           path: '**/app/build/outputs/apk/debug/app-debug.apk'
+      - name: Publish the APK on the website (web/download)
+        run: |
+          apk=$(find . -path '*app/build/outputs/apk/debug/app-debug.apk' | head -1)
+          mkdir -p web/download
+          cp "$apk" web/download/PhotoTriage.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/download/PhotoTriage.apk
+          if git diff --cached --quiet; then echo "APK unchanged"; exit 0; fi
+          git commit -m "Publish new Android APK"
+          git pull --rebase
+          git push
