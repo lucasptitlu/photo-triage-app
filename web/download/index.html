@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photo Triage</title>
+<link rel="icon" href="../icon-192.png">
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif;margin:0;background:#f4f4f2;color:#222;line-height:1.5}
+a{color:#1d6fe0}
+header{background:#fff;border-bottom:1px solid #ddd;padding:10px 18px;display:flex;align-items:center;gap:12px}
+header .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;text-decoration:none;color:#222;flex:1}
+header .logo img{width:28px;height:28px;border-radius:6px}
+header button{border:1px solid #bbb;background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:13px}
+.wrap{max-width:980px;margin:26px auto;padding:0 18px}
+h1{margin:0 0 6px}
+.lead{color:#555;margin-top:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:760px){.cols{grid-template-columns:1fr}}
+.card{background:#fff;border-radius:12px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.07);border:2px solid transparent}
+.card.mine{border-color:#1d6fe0}
+.card h2{margin-top:0;display:flex;align-items:center;gap:8px}
+.tag{font-size:11px;font-weight:700;background:#1d6fe0;color:#fff;border-radius:5px;padding:2px 7px}
+.btn{display:inline-block;border-radius:9px;padding:12px 18px;font-weight:600;text-decoration:none;border:1px solid #bbb;color:#222;background:#fff;margin:4px 6px 4px 0}
+.btn.primary{background:#1d6fe0;color:#fff;border-color:#1d6fe0}
+.btn.off{opacity:.45;pointer-events:none}
+ol{padding-left:20px}ol li{margin-bottom:6px}
+.note{font-size:13px;color:#666}
+.feat{font-size:14px;margin:8px 0 14px;padding-left:18px}
+code{background:#f0f0f0;border-radius:4px;padding:1px 5px}
+footer{text-align:center;font-size:12px;color:#888;padding:24px}
+.hidden{display:none!important}
+</style>
+</head><body>
+<header><a class="logo" href="../"><img src="../icon-192.png" alt="">Photo Triage</a><a href="../" data-i18n="back"></a><button id="langBtn"></button></header>
+<div class="wrap">
+  <h1 data-i18n="h1"></h1>
+  <p class="lead" data-i18n="lead"></p>
+
+  <div class="cols">
+    <div class="card" id="android">
+      <h2>🤖 Android <span class="tag hidden" id="tagA" data-i18n="yours"></span></h2>
+      <ul class="feat" data-i18n="aFeat"></ul>
+      <a class="btn primary" id="apkBtn" href="PhotoTriage.apk" download data-i18n="aBtn"></a>
+      <p class="note hidden" id="apkMissing" data-i18n="aMissing"></p>
+      <h3 data-i18n="how"></h3>
+      <ol data-i18n="aSteps"></ol>
+      <p class="note" data-i18n="aUpdate"></p>
+      <p class="note" data-i18n="aWeb"></p>
+    </div>
+
+    <div class="card" id="iphone">
+      <h2>🍎 iPhone &amp; iPad <span class="tag hidden" id="tagI" data-i18n="yours"></span></h2>
+      <ul class="feat" data-i18n="iFeat"></ul>
+      <a class="btn primary" href="../mobile/" data-i18n="iBtn"></a>
+      <h3 data-i18n="how"></h3>
+      <ol data-i18n="iSteps"></ol>
+      <p class="note" data-i18n="iNote"></p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2 data-i18n="pcTitle"></h2>
+    <p data-i18n="pcText"></p>
+  </div>
+</div>
+<footer data-i18n="footer"></footer>
+<script>
+const I18N={
+fr:{
+  title:'Photo Triage sur votre téléphone',back:'← Version ordinateur',langSwitch:'English',
+  h1:'Photo Triage sur votre téléphone',
+  lead:'Repérez les photos similaires dans votre galerie, gardez la meilleure, écartez les autres. Vos photos restent sur votre téléphone.',
+  yours:'Votre appareil',how:'Installation',
+  aFeat:'<li>Lit directement vos albums</li><li>Met les photos écartées dans la corbeille Android (récupérables pendant environ 30 jours sur la plupart des téléphones)</li><li>Nécessite Android 11 ou plus récent</li>',
+  aBtn:'Télécharger l’application (APK)',
+  aMissing:'L’application Android n’est pas encore disponible. Revenez bientôt, ou utilisez la version web ci-dessous.',
+  aSteps:'<li>Ouvrez cette page <b>sur votre téléphone Android</b> et appuyez sur <b>Télécharger l’application</b>.<br><span class="note">Sur un ordinateur ? Téléchargez-la puis envoyez-la sur votre téléphone (Google Drive, e-mail ou câble USB).</span></li><li>Ouvrez le fichier <code>PhotoTriage.apk</code> téléchargé (depuis la notification ou l’application <b>Fichiers</b>).</li><li>Si Android indique que l’installation depuis cette source n’est pas autorisée, appuyez sur <b>Paramètres</b>, activez <b>Autoriser cette source</b>, puis revenez en arrière.</li><li>Appuyez sur <b>Installer</b>. Si Play Protect signale une application inconnue, appuyez sur <b>Plus de détails → Installer quand même</b>. C’est normal pour une application qui ne vient pas du Play Store.</li><li>Ouvrez <b>Photo Triage</b> et autorisez l’accès à vos photos.</li>',
+  aUpdate:'Vous mettez à jour une ancienne version ? Si Android affiche « Application non installée », désinstallez d’abord l’ancienne version de Photo Triage, puis réinstallez.',
+  aWeb:'Vous préférez ne pas installer d’APK ? Utilisez la <a href="../mobile/">version web</a> dans Chrome et choisissez <b>⋮ → Installer l’application</b>. Elle ne peut pas supprimer de photos, mais elle peut partager ou enregistrer celles que vous gardez.',
+  iFeat:'<li>Pas besoin de l’App Store : elle s’installe depuis Safari</li><li>Regroupe les photos similaires et vous laisse choisir celles à garder</li><li>Fonctionne hors connexion une fois installée</li>',
+  iBtn:'Ouvrir l’application iPhone',
+  iSteps:'<li>Ouvrez cette page dans <b>Safari</b> sur votre iPhone et appuyez sur <b>Ouvrir l’application iPhone</b>.</li><li>Appuyez sur le bouton <b>Partager</b> <span aria-hidden="true">(□↑)</span> en bas de l’écran.</li><li>Faites défiler et appuyez sur <b>Sur l’écran d’accueil</b>, puis sur <b>Ajouter</b>.</li><li>Lancez <b>Triage</b> depuis l’écran d’accueil et appuyez sur <b>Choisir des photos</b>.</li>',
+  iNote:'L’iPhone limite ce que peuvent faire les applications web : Photo Triage ne peut pas supprimer de photos de votre photothèque. À la fin, elle affiche la liste des photos à écarter et peut partager celles que vous gardez. Supprimez les photos écartées dans l’app Photos : elles restent 30 jours dans <b>Supprimés récemment</b>.',
+  pcTitle:'💻 Sur un ordinateur ?',
+  pcText:'La <a href="../">version ordinateur</a> est la plus pratique pour les gros dossiers (des milliers de photos). Dans Chrome ou Edge, elle déplace elle-même les photos écartées dans un dossier <code>_Rejected</code>.',
+  footer:'Photo Triage fonctionne entièrement sur votre appareil. Aucun envoi, aucun compte, aucun pistage.'
+},
+en:{
+  title:'Get Photo Triage on your phone',back:'← Desktop app',langSwitch:'Français',
+  h1:'Photo Triage on your phone',
+  lead:'Find similar shots in your gallery, keep the best one, remove the rest. Photos stay on your phone.',
+  yours:'Your device',how:'How to install',
+  aFeat:'<li>Reads your albums directly</li><li>Moves rejected photos to the Android trash (restorable for about 30 days on most phones)</li><li>Requires Android 11 or newer</li>',
+  aBtn:'Download the app (APK)',
+  aMissing:'The Android app hasn’t been built yet. Check back soon, or use the web version below.',
+  aSteps:'<li>Open this page <b>on your Android phone</b> and tap <b>Download the app</b>.<br><span class="note">On a computer? Download it, then send it to your phone (Google Drive, email or USB cable).</span></li><li>Open the downloaded <code>PhotoTriage.apk</code> (from the notification or the <b>Files</b> app).</li><li>If Android says installing apps from this source isn’t allowed, tap <b>Settings</b>, turn on <b>Allow from this source</b>, and go back.</li><li>Tap <b>Install</b>. If Play Protect warns about an unknown app, tap <b>More details → Install anyway</b>. This is normal for apps not distributed through the Play Store.</li><li>Open <b>Photo Triage</b> and allow access to your photos.</li>',
+  aUpdate:'Updating from an older version? If Android says “App not installed”, uninstall the old Photo Triage first, then install again.',
+  aWeb:'Prefer not to install an APK? Use the <a href="../mobile/">web version</a> in Chrome and choose <b>⋮ → Install app</b>. It can’t delete photos, but it can share or save your keepers.',
+  iFeat:'<li>No App Store download needed: it installs from Safari</li><li>Groups similar photos and lets you pick the keepers</li><li>Works offline once installed</li>',
+  iBtn:'Open the iPhone app',
+  iSteps:'<li>Open this page in <b>Safari</b> on your iPhone and tap <b>Open the iPhone app</b>.</li><li>Tap the <b>Share</b> button <span aria-hidden="true">(□↑)</span> at the bottom of the screen.</li><li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Launch <b>Triage</b> from your home screen and tap <b>Choose photos</b>.</li>',
+  iNote:'iPhone limits what web apps can do: Photo Triage can’t delete photos from your library. When you finish, it shows the list of rejects and can share your keepers. Delete the rejects in the Photos app, where they stay in <b>Recently Deleted</b> for 30 days.',
+  pcTitle:'💻 On a computer?',
+  pcText:'The <a href="../">desktop version</a> is the most comfortable for large folders (thousands of photos). In Chrome or Edge it moves rejects into a <code>_Rejected</code> folder for you.',
+  footer:'Photo Triage runs entirely on your device. No uploads, no account, no tracking.'
+}};
+let LANG='fr';try{const l=localStorage.getItem('pt_lang');if(l==='en'||l==='fr')LANG=l}catch(e){}
+const t=k=>I18N[LANG][k]??I18N.fr[k]??k;
+function applyI18n(){document.documentElement.lang=LANG;document.title=t('title');
+  document.querySelectorAll('[data-i18n]').forEach(e=>e.innerHTML=t(e.dataset.i18n));
+  document.getElementById('langBtn').textContent=t('langSwitch')}
+document.getElementById('langBtn').onclick=()=>{LANG=LANG==='fr'?'en':'fr';try{localStorage.setItem('pt_lang',LANG)}catch(e){}applyI18n()};
+applyI18n();
+
+const ua=navigator.userAgent;
+const isAndroid=/Android/i.test(ua);
+const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+if(isAndroid){document.getElementById('android').classList.add('mine');document.getElementById('tagA').classList.remove('hidden')}
+if(isIOS){document.getElementById('iphone').classList.add('mine');document.getElementById('tagI').classList.remove('hidden');
+  document.querySelector('.cols').prepend(document.getElementById('iphone'))}
+fetch('PhotoTriage.apk',{method:'HEAD'}).then(r=>{
+  const type=r.headers.get('content-type')||'';
+  if(!r.ok||type.includes('text/html')){document.getElementById('apkBtn').classList.add('off');document.getElementById('apkMissing').classList.remove('hidden')}
+}).catch(()=>{});
+</script>
+</body></html>

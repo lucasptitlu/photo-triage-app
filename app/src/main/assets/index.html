@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Photo Triage</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:system-ui,Roboto,sans-serif;margin:0;background:#f4f4f2;color:#222;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:5;background:#1d6fe0;color:#fff;padding:14px;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;margin:0;flex:1}
+header .count{font-size:13px;opacity:.9}
+header button{color:#fff;font-size:13px;background:none;border:1px solid rgba(255,255,255,.6);border-radius:6px;padding:4px 8px}
+main{padding:14px;max-width:900px;margin:0 auto}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.btn{display:inline-block;border:0;border-radius:10px;padding:13px 16px;font-size:16px;font-weight:600;background:#e7ecf5;color:#1d3f75;text-align:center}
+.btn.primary{background:#1d6fe0;color:#fff}
+.btn.red{background:#e04646;color:#fff}
+.btn.block{display:block;width:100%;margin-top:10px}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:8px}.row .btn{flex:1}
+p.small{font-size:13px;color:#666;line-height:1.45}
+.bar{height:8px;background:#e3e3e3;border-radius:4px;overflow:hidden;margin-top:10px}.bar div{height:100%;background:#1d6fe0;width:0}
+label.opt{display:block;font-size:14px;margin-top:14px}
+label.opt select,label.opt input{display:block;width:100%;margin-top:6px;padding:10px;font-size:16px;border:1px solid #ccc;border-radius:8px;background:#fff}
+.dates{display:flex;gap:8px}.dates label{flex:1}
+.ghead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,2),1fr);gap:8px}
+.ph{position:relative;border-radius:10px;overflow:hidden;border:5px solid #2bb24c;background:#ddd;aspect-ratio:3/4}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.move{border-color:#e04646}
+.ph .tag{position:absolute;left:6px;top:6px;font-size:12px;font-weight:700;padding:3px 7px;border-radius:6px;background:#2bb24c;color:#fff}
+.ph.move .tag{background:#e04646}
+.ph .best{position:absolute;right:6px;top:6px;font-size:12px;padding:3px 7px;border-radius:6px;background:rgba(0,0,0,.6);color:#fff}
+.ph .tools{position:absolute;left:0;right:0;bottom:0;display:flex}
+.ph .tools button{flex:1;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;padding:10px 0}
+.ph .tools button+button{border-left:1px solid rgba(255,255,255,.25)}
+.nav{position:sticky;bottom:0;background:#f4f4f2;padding:10px 0}
+#lb{display:none;position:fixed;inset:0;background:#000;z-index:20;flex-direction:column}
+#lb img{flex:1;min-height:0;width:100%;object-fit:contain}
+#lb .lbbar{display:flex;gap:8px;padding:10px}
+#lb .lbbar .btn{flex:1;padding:12px 6px;font-size:15px}
+#lbcap{color:#fff;text-align:center;font-size:13px;padding:8px}
+.hidden{display:none!important}
+</style>
+</head><body>
+<header><h1>Photo Triage</h1><span class="count" id="hcount"></span><button id="langBtn"></button></header>
+<main>
+
+<section id="vPerm" class="hidden">
+  <div class="card">
+    <h2 style="margin-top:0" data-i18n="permTitle"></h2>
+    <p class="small" data-i18n="permText"></p>
+    <button class="btn primary block" onclick="Android.requestPermission()" data-i18n="permBtn"></button>
+    <p class="small hidden" id="permDenied" data-i18n="permDenied"></p>
+  </div>
+</section>
+
+<section id="vStart" class="hidden">
+  <div class="card">
+    <h2 style="margin-top:0" data-i18n="startTitle"></h2>
+    <label class="opt"><span data-i18n="album"></span><select id="album"></select></label>
+    <div class="dates">
+      <label class="opt"><span data-i18n="from"></span><input type="date" id="dFrom"></label>
+      <label class="opt"><span data-i18n="to"></span><input type="date" id="dTo"></label>
+    </div>
+    <label class="opt"><span data-i18n="sens"></span>
+      <select id="sens"><option value="loose" data-i18n="loose"></option><option value="normal" selected data-i18n="normal"></option><option value="strict" data-i18n="strict"></option></select></label>
+    <label class="opt"><span data-i18n="perRow"></span>
+      <select id="cols"><option>1</option><option selected>2</option><option>3</option></select></label>
+    <button class="btn primary block" id="goBtn" onclick="start()" data-i18n="findBtn"></button>
+    <p class="small" id="startInfo"></p>
+  </div>
+  <div class="card hidden" id="progCard"><b id="progTxt"></b><div class="bar"><div id="progBar"></div></div>
+    <p class="small" data-i18n="keepOpen"></p></div>
+</section>
+
+<section id="vReview" class="hidden">
+  <div class="card">
+    <div class="ghead"><b id="gTitle"></b><span id="gInfo"></span></div>
+    <div class="grid" id="grid"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="setGroup(false)" data-i18n="keepAll"></button>
+      <button class="btn" onclick="resetGroup()" data-i18n="suggestion"></button>
+    </div>
+  </div>
+  <div class="nav row">
+    <button class="btn" id="prevBtn" onclick="go(-1)" data-i18n="prev"></button>
+    <button class="btn primary" id="nextBtn" onclick="go(1)"></button>
+  </div>
+</section>
+
+<section id="vDone" class="hidden">
+  <div class="card">
+    <h2 style="margin-top:0" data-i18n="doneTitle"></h2>
+    <p id="sumTxt"></p>
+    <button class="btn red block" id="trashBtn" onclick="trashRejects()" data-i18n="trashBtn"></button>
+    <p class="small" data-i18n="trashNote"></p>
+    <button class="btn block" onclick="shareKeepers()" data-i18n="share"></button>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="show('vReview')" data-i18n="backReview"></button>
+      <button class="btn" onclick="newBatch()" data-i18n="newBatch"></button>
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="lb"><div id="lbcap"></div><img id="lbimg" alt=""><div class="lbbar">
+  <button class="btn" onclick="lbStep(-1)">‹</button>
+  <button class="btn" id="lbToggle" onclick="lbToggle()"></button>
+  <button class="btn" onclick="lbStep(1)">›</button>
+  <button class="btn" onclick="closeLb()" data-i18n="close"></button></div></div>
+
+<script>
+'use strict';
+const I18N={
+fr:{langSwitch:'EN',permTitle:'Autorisez l’accès à vos photos',
+  permText:'L’application doit lire vos photos pour repérer les photos similaires. Tout reste sur votre téléphone, et l’application n’a pas accès à Internet.',
+  permBtn:'Autoriser l’accès',permDenied:'L’accès a été refusé. Vous pouvez l’activer dans Paramètres → Applications → Photo Triage → Autorisations → Photos.',
+  startTitle:'Choisissez ce que vous voulez trier',album:'Album',from:'Du (facultatif)',to:'Au (facultatif)',
+  sens:'Degré de ressemblance',loose:'Large (groupes plus grands)',normal:'Normal',strict:'Strict (groupes plus petits)',
+  perRow:'Photos par ligne',findBtn:'Trouver les photos similaires',keepOpen:'Gardez l’application ouverte pendant l’analyse.',
+  allPhotos:'Toutes les photos ({n})',noPhotos:'Aucune photo pour cet album et ces dates.',
+  bigBatch:'{n} photos sélectionnées. Cela peut prendre plusieurs minutes. Continuer ?',
+  analysing:'Analyse en cours : {i} / {n}',noGroups:'Aucune photo similaire parmi {n} photos. Rien à trier.',
+  keepAll:'Tout garder',suggestion:'Revenir à la suggestion',prev:'‹ Précédent',next:'Suivant ›',finish:'Terminer ›',
+  group:'Groupe {i} sur {n}',groupInfo:'{n} photos · {k} gardée(s)',KEEP:'GARDER',REMOVE:'RETIRER',sharpest:'la plus nette',
+  only:'Garder celle-ci seule',full:'Agrandir',keepVerb:'Garder',removeVerb:'Retirer',close:'Fermer',
+  doneTitle:'Terminé',summary:'<b>{k}</b> photos gardées, <b>{r}</b> à retirer (sur {n}). Les photos sans photo similaire sont toujours gardées.',
+  trashBtn:'Mettre les photos écartées à la corbeille',
+  trashNote:'Android vous demande d’abord de confirmer. Sur la plupart des téléphones, les photos mises à la corbeille sont récupérables pendant environ 30 jours.',
+  share:'Partager les photos gardées…',backReview:'‹ Retour au tri',newBatch:'Nouveau lot',
+  trashed:'<b>{n}</b> photos mises à la corbeille. 🎉',trashNone:'Aucune photo n’a été mise à la corbeille.',
+  leave:'Quitter ce lot ? Vos choix sont enregistrés.',counter:'{k} gardées · {m} à retirer'},
+en:{langSwitch:'FR',permTitle:'Allow access to your photos',
+  permText:'The app needs to read your photos to find similar shots. Everything stays on your phone, and the app has no internet access.',
+  permBtn:'Allow access',permDenied:'Access was refused. You can enable it in Settings → Apps → Photo Triage → Permissions → Photos.',
+  startTitle:'Choose what to sort',album:'Album',from:'From (optional)',to:'To (optional)',
+  sens:'How similar must shots be?',loose:'Loose (bigger groups)',normal:'Normal',strict:'Strict (smaller groups)',
+  perRow:'Photos per row',findBtn:'Find similar photos',keepOpen:'Keep the app open while it works.',
+  allPhotos:'All photos ({n})',noPhotos:'No photos found for this album and dates.',
+  bigBatch:'{n} photos selected. This may take several minutes. Continue?',
+  analysing:'Analysing {i} / {n}',noGroups:'No similar shots found among {n} photos. Nothing to sort.',
+  keepAll:'Keep all',suggestion:'Back to suggestion',prev:'‹ Previous',next:'Next ›',finish:'Finish ›',
+  group:'Group {i} of {n}',groupInfo:'{n} photos · keep {k}',KEEP:'KEEP',REMOVE:'MOVE',sharpest:'sharpest',
+  only:'Keep only this',full:'Full',keepVerb:'Keep',removeVerb:'Move',close:'Close',
+  doneTitle:'Done',summary:'<b>{k}</b> photos kept, <b>{r}</b> to remove (out of {n}). Photos without a look-alike are always kept.',
+  trashBtn:'Move rejects to trash',
+  trashNote:'Android asks you to confirm first. On most phones, trashed photos can be restored for about 30 days.',
+  share:'Share the keepers…',backReview:'‹ Back to review',newBatch:'New batch',
+  trashed:'<b>{n}</b> photos moved to the trash. 🎉',trashNone:'Nothing was moved to the trash.',
+  leave:'Leave this batch? Your choices are saved.',counter:'{k} keep · {m} move'}};
+let LANG='fr';try{const l=localStorage.getItem('pt_lang');if(l==='en'||l==='fr')LANG=l}catch(e){}
+function t(k,v){let s=I18N[LANG][k]??I18N.fr[k]??k;if(v)for(const x in v)s=s.split('{'+x+'}').join(v[x]);return s}
+function applyI18n(){document.documentElement.lang=LANG;
+  document.querySelectorAll('[data-i18n]').forEach(e=>e.innerHTML=t(e.dataset.i18n));
+  $('langBtn').textContent=t('langSwitch');
+  if(albumsLoaded)loadAlbums(true);
+  if(!$('vReview').classList.contains('hidden'))renderGroup();
+  if(!$('vDone').classList.contains('hidden')&&!trashedMsg)summary();
+  if(lbOpen())lbShow();updateCount()}
+
+const $=id=>document.getElementById(id);
+let P=[],G=[],gi=0,albumsLoaded=false,trashedMsg=false;
+const move=new Set();
+const SKEY='phototriage_choices_v1';
+let saved={};try{saved=JSON.parse(localStorage.getItem(SKEY)||'{}')}catch(e){}
+function persist(){try{P.forEach(p=>{saved[p.key]=move.has(p.key)?1:0});localStorage.setItem(SKEY,JSON.stringify(saved))}catch(e){}}
+
+$('langBtn').onclick=()=>{LANG=LANG==='fr'?'en':'fr';try{localStorage.setItem('pt_lang',LANG)}catch(e){}applyI18n()};
+function show(v){['vPerm','vStart','vReview','vDone'].forEach(x=>$(x).classList.toggle('hidden',x!==v));window.scrollTo(0,0);
+  if(v==='vDone'){trashedMsg=false;summary()}if(v==='vReview')renderGroup();if(v==='vStart'||v==='vPerm')$('hcount').textContent=''}
+$('cols').onchange=e=>document.documentElement.style.setProperty('--cols',e.target.value);
+
+// ----- permission + albums -----
+function init(){if(Android.hasPermission()){loadAlbums();show('vStart')}else show('vPerm')}
+window.onPerm=ok=>{if(ok){loadAlbums();show('vStart')}else $('permDenied').classList.remove('hidden')};
+function loadAlbums(keepSelection){const prev=$('album').value;
+  const A=JSON.parse(Android.albums());const total=A.reduce((s,a)=>s+a.count,0);
+  $('album').innerHTML=`<option value="">${t('allPhotos',{n:total})}</option>`+A.map(a=>`<option value="${a.id}">${esc(a.name)} (${a.count})</option>`).join('');
+  if(keepSelection&&[...$('album').options].some(o=>o.value===prev))$('album').value=prev;
+  else{const cam=A.find(a=>/^camera$/i.test(a.name));if(cam)$('album').value=cam.id}
+  albumsLoaded=true}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ----- analysis -----
+const cv=document.createElement('canvas');const cx=cv.getContext('2d',{willReadFrequently:true});
+async function analyse(id){
+  const r=await fetch('/thumb/'+id);if(!r.ok)return null;const blob=await r.blob();
+  const bmp=await createImageBitmap(blob).catch(()=>null);if(!bmp)return null;
+  const w=bmp.width,h=bmp.height;
+  const sw=Math.round(w/2),sh=Math.round(h/2);cv.width=sw;cv.height=sh;cx.drawImage(bmp,0,0,sw,sh);
+  const d=cx.getImageData(0,0,sw,sh).data;const g=new Float32Array(sw*sh);
+  for(let i=0;i<sw*sh;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+  const T=5,tv=[];
+  for(let ty=0;ty<T;ty++)for(let tx=0;tx<T;tx++){let s1=0,s2=0,n=0;
+    for(let y=Math.max(1,Math.floor(ty*sh/T));y<Math.min(sh-1,Math.floor((ty+1)*sh/T));y++)
+      for(let x=Math.max(1,Math.floor(tx*sw/T));x<Math.min(sw-1,Math.floor((tx+1)*sw/T));x++){
+        const k=y*sw+x,l=g[k-1]+g[k+1]+g[k-sw]+g[k+sw]-4*g[k];s1+=l;s2+=l*l;n++}
+    if(n)tv.push(s2/n-(s1/n)**2)}
+  tv.sort((a,b)=>a-b);const sharp=tv[Math.floor(tv.length*.9)]||0;
+  cv.width=9;cv.height=8;cx.drawImage(bmp,0,0,9,8);const q=cx.getImageData(0,0,9,8).data;const hash=[];
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){const a=(y*9+x)*4,b=a+4;hash.push((q[a]+q[a+1]+q[a+2])>(q[b]+q[b+1]+q[b+2])?1:0)}
+  cv.width=32;cv.height=32;cx.drawImage(bmp,0,0,32,32);const c=cx.getImageData(0,0,32,32).data;const hist=new Float32Array(64);
+  for(let i=0;i<1024;i++){hist[(c[i*4]>>6)*16+(c[i*4+1]>>6)*4+(c[i*4+2]>>6)]+=1/1024}
+  bmp.close();
+  return {thumb:URL.createObjectURL(blob),sharp,hash,hist,portrait:h>w};
+}
+const ham=(a,b)=>{let n=0;for(let i=0;i<64;i++)n+=a[i]!==b[i];return n};
+const hinter=(a,b)=>{let s=0;for(let i=0;i<64;i++)s+=Math.min(a[i],b[i]);return s};
+
+async function start(){
+  $('startInfo').textContent='';
+  const from=$('dFrom').value?new Date($('dFrom').value+'T00:00:00').getTime():0;
+  const to=$('dTo').value?new Date($('dTo').value+'T23:59:59').getTime():0;
+  const list=JSON.parse(Android.photos($('album').value,String(from),String(to)));
+  if(!list.length){$('startInfo').textContent=t('noPhotos');return}
+  if(list.length>1500&&!confirm(t('bigBatch',{n:list.length})))return;
+  $('goBtn').disabled=true;$('progCard').classList.remove('hidden');
+  P.forEach(p=>URL.revokeObjectURL(p.thumb));P=[];
+  const out=new Array(list.length);let done=0,next=0;
+  $('progTxt').textContent=t('analysing',{i:0,n:list.length});
+  async function worker(){while(next<list.length){const i=next++;const it=list[i];
+    try{const a=await analyse(it.id);if(a)out[i]={id:it.id,name:it.name,key:it.id,t:it.t/1000,...a}}catch(e){}
+    done++;$('progTxt').textContent=t('analysing',{i:done,n:list.length});$('progBar').style.width=(done/list.length*100)+'%'}}
+  await Promise.all([worker(),worker(),worker()]);
+  P=out.filter(Boolean);
+  $('goBtn').disabled=false;$('progCard').classList.add('hidden');
+  group();
+}
+
+function group(){
+  const S={loose:{dt:30,h:22,hi:.65},normal:{dt:15,h:18,hi:.72},strict:{dt:6,h:12,hi:.8}}[$('sens').value];
+  P.sort((a,b)=>a.t-b.t);G=[];if(!P.length)return;let cur=[0];
+  for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i];const hi=hinter(a.hist,b.hist);
+    const same=(b.t-a.t)<S.dt&&a.portrait===b.portrait&&hi>.45&&(ham(a.hash,b.hash)<=S.h||hi>S.hi);
+    if(same)cur.push(i);else{G.push(cur);cur=[i]}}
+  G.push(cur);G=G.filter(g=>g.length>1);
+  move.clear();
+  G.forEach(g=>{if(g.some(i=>P[i].key in saved))g.forEach(i=>{if(saved[P[i].key])move.add(P[i].key)});
+    else suggest(g).forEach(k=>move.add(k))});
+  persist();gi=0;
+  if(!G.length){$('startInfo').textContent=t('noGroups',{n:P.length});return}
+  show('vReview');
+}
+function bestOrder(g){return [...g].sort((a,b)=>P[b].sharp-P[a].sharp)}
+function suggest(g){const ord=bestOrder(g);const keep=new Set([ord[0]]);
+  if(g.length>=8){const sec=ord.find(i=>Math.abs(g.indexOf(i)-g.indexOf(ord[0]))>1);if(sec!==undefined)keep.add(sec)}
+  return g.filter(i=>!keep.has(i)).map(i=>P[i].key)}
+
+// ----- review -----
+function renderGroup(){
+  if(!G.length)return;
+  const g=G[gi];const top=bestOrder(g)[0];
+  $('gTitle').textContent=t('group',{i:gi+1,n:G.length});
+  $('gInfo').textContent=t('groupInfo',{n:g.length,k:g.filter(i=>!move.has(P[i].key)).length});
+  $('prevBtn').disabled=gi===0;$('nextBtn').textContent=gi===G.length-1?t('finish'):t('next');
+  const grid=$('grid');grid.innerHTML='';
+  g.forEach((i,pos)=>{const p=P[i];const m=move.has(p.key);const el=document.createElement('div');el.className='ph'+(m?' move':'');
+    el.innerHTML=`<img src="${p.thumb}" alt=""><span class="tag">${m?t('REMOVE'):t('KEEP')}</span>${i===top?`<span class="best">${t('sharpest')}</span>`:''}
+      <div class="tools"><button data-a="only">${t('only')}</button><button data-a="zoom">${t('full')}</button></div>`;
+    el.onclick=ev=>{const a=ev.target.dataset&&ev.target.dataset.a;
+      if(a==='zoom'){openLb(pos);return}
+      if(a==='only'){g.forEach(j=>move.add(P[j].key));move.delete(p.key)}else{m?move.delete(p.key):move.add(p.key)}
+      persist();renderGroup()};
+    grid.appendChild(el)});
+  updateCount();
+}
+function setGroup(v){G[gi].forEach(i=>v?move.add(P[i].key):move.delete(P[i].key));persist();renderGroup()}
+function resetGroup(){G[gi].forEach(i=>move.delete(P[i].key));suggest(G[gi]).forEach(k=>move.add(k));persist();renderGroup()}
+function go(d){if(d>0&&gi===G.length-1){show('vDone');return}gi=Math.max(0,Math.min(G.length-1,gi+d));renderGroup();window.scrollTo(0,0)}
+function updateCount(){$('hcount').textContent=P.length&&(!$('vReview').classList.contains('hidden')||!$('vDone').classList.contains('hidden'))?t('counter',{k:P.length-move.size,m:move.size}):''}
+
+// ----- full-size view -----
+let lbPos=0;
+const lbOpen=()=>$('lb').style.display==='flex';
+function openLb(pos){lbPos=pos;$('lb').style.display='flex';lbShow()}
+function lbShow(){const p=P[G[gi][lbPos]];$('lbimg').src='/full/'+p.id;const m=move.has(p.key);
+  $('lbcap').textContent=`${lbPos+1} / ${G[gi].length} · ${m?t('REMOVE'):t('KEEP')}`;$('lbToggle').textContent=m?t('keepVerb'):t('removeVerb')}
+function lbStep(d){const n=G[gi].length;lbPos=(lbPos+d+n)%n;lbShow()}
+function lbToggle(){const k=P[G[gi][lbPos]].key;move.has(k)?move.delete(k):move.add(k);persist();lbShow()}
+function closeLb(){$('lb').style.display='none';$('lbimg').src='';renderGroup()}
+
+// ----- finish -----
+const rejects=()=>P.filter(p=>move.has(p.key));
+function summary(){const r=rejects().length;
+  $('sumTxt').innerHTML=t('summary',{k:P.length-r,r,n:P.length});
+  $('trashBtn').disabled=r===0;updateCount()}
+function trashRejects(){const ids=rejects().map(p=>p.id);if(!ids.length)return;$('trashBtn').disabled=true;Android.trash(JSON.stringify(ids))}
+window.onTrash=ok=>{
+  if(ok){const gone=new Set(rejects().map(p=>p.key));
+    P.forEach(p=>{if(gone.has(p.key))delete saved[p.key]});try{localStorage.setItem(SKEY,JSON.stringify(saved))}catch(e){}
+    $('sumTxt').innerHTML=t('trashed',{n:gone.size});trashedMsg=true;$('trashBtn').disabled=true;
+    P=P.filter(p=>!gone.has(p.key));G=[];move.clear();loadAlbums(true);$('hcount').textContent=''}
+  else{$('trashBtn').disabled=false;alert(t('trashNone'))}};
+function shareKeepers(){const ids=P.filter(p=>!move.has(p.key)).map(p=>p.id);if(ids.length)Android.share(JSON.stringify(ids))}
+function newBatch(){P.forEach(p=>URL.revokeObjectURL(p.thumb));P=[];G=[];move.clear();show('vStart')}
+
+// ----- Android back button -----
+window.onBack=()=>{
+  if(lbOpen()){closeLb();return true}
+  if(!$('vDone').classList.contains('hidden')){if(G.length){show('vReview')}else show('vStart');return true}
+  if(!$('vReview').classList.contains('hidden')){if(gi>0){go(-1)}else if(confirm(t('leave')))show('vStart');return true}
+  return false};
+
+applyI18n();
+init();
+</script>
+</body></html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6fe0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Triage">
+<title>Photo Triage</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Roboto,sans-serif;margin:0;background:#f4f4f2;color:#222;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:5;background:#1d6fe0;color:#fff;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;margin:0;flex:1}
+header .count{font-size:13px;opacity:.9}
+header a,header button{color:#fff;font-size:13px;background:none;border:1px solid rgba(255,255,255,.6);border-radius:6px;padding:4px 8px;text-decoration:none}
+main{padding:14px;max-width:900px;margin:0 auto}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.btn{display:inline-block;border:0;border-radius:10px;padding:13px 16px;font-size:16px;font-weight:600;background:#e7ecf5;color:#1d3f75;cursor:pointer;text-align:center}
+.btn.primary{background:#1d6fe0;color:#fff}
+.btn.green{background:#2bb24c;color:#fff}
+.btn.block{display:block;width:100%;margin-top:10px}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:8px}.row .btn{flex:1}
+p.small{font-size:13px;color:#666;line-height:1.45}
+.bar{height:8px;background:#e3e3e3;border-radius:4px;overflow:hidden;margin-top:10px}.bar div{height:100%;background:#1d6fe0;width:0}
+.ghead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,2),1fr);gap:8px}
+.ph{position:relative;border-radius:10px;overflow:hidden;border:5px solid #2bb24c;background:#ddd;aspect-ratio:3/4}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.move{border-color:#e04646}
+.ph .tag{position:absolute;left:6px;top:6px;font-size:12px;font-weight:700;padding:3px 7px;border-radius:6px;background:#2bb24c;color:#fff}
+.ph.move .tag{background:#e04646}
+.ph .best{position:absolute;right:6px;top:6px;font-size:12px;padding:3px 7px;border-radius:6px;background:rgba(0,0,0,.6);color:#fff}
+.ph .tools{position:absolute;left:0;right:0;bottom:0;display:flex}
+.ph .tools button{flex:1;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;padding:9px 0}
+.ph .tools button+button{border-left:1px solid rgba(255,255,255,.25)}
+.nav{position:sticky;bottom:0;background:#f4f4f2;padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+#lb{display:none;position:fixed;inset:0;background:#000;z-index:20;flex-direction:column}
+#lb img{flex:1;min-height:0;width:100%;object-fit:contain}
+#lb .lbbar{display:flex;gap:8px;padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+#lb .lbbar .btn{flex:1;padding:12px 6px;font-size:15px}
+#lbcap{color:#fff;text-align:center;font-size:13px;padding:8px;padding-top:calc(8px + env(safe-area-inset-top))}
+.hidden{display:none!important}
+textarea{width:100%;height:140px;font-family:monospace;font-size:12px;border-radius:8px;border:1px solid #ccc;padding:8px}
+label.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;margin-top:12px}
+</style>
+</head><body>
+<header><h1>Photo Triage</h1><span class="count" id="hcount"></span><a href="../download/">Android</a><button id="langBtn"></button></header>
+<main>
+
+<section id="vStart">
+  <div class="card">
+    <h2 style="margin-top:0" data-i18n="pickTitle"></h2>
+    <p class="small" data-i18n="pickText"></p>
+    <input type="file" id="file" accept="image/*" multiple class="hidden">
+    <button class="btn primary block" onclick="document.getElementById('file').click()" data-i18n="choose"></button>
+    <label class="opt"><span data-i18n="sens"></span>
+      <select id="sens"><option value="loose" data-i18n="loose"></option><option value="normal" selected data-i18n="normal"></option><option value="strict" data-i18n="strict"></option></select></label>
+    <label class="opt"><span data-i18n="perRow"></span>
+      <select id="cols"><option>1</option><option selected>2</option><option>3</option></select></label>
+  </div>
+  <div class="card hidden" id="progCard"><b id="progTxt"></b><div class="bar"><div id="progBar"></div></div>
+    <p class="small" data-i18n="keepOpen"></p></div>
+</section>
+
+<section id="vReview" class="hidden">
+  <div class="card">
+    <div class="ghead"><b id="gTitle"></b><span id="gInfo"></span></div>
+    <div class="grid" id="grid"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="setGroup(false)" data-i18n="keepAll"></button>
+      <button class="btn" onclick="resetGroup()" data-i18n="suggestion"></button>
+    </div>
+  </div>
+  <div class="nav row">
+    <button class="btn" id="prevBtn" onclick="go(-1)" data-i18n="prev"></button>
+    <button class="btn primary" id="nextBtn" onclick="go(1)"></button>
+  </div>
+</section>
+
+<section id="vDone" class="hidden">
+  <div class="card">
+    <h2 style="margin-top:0" data-i18n="doneTitle"></h2>
+    <p id="sumTxt"></p>
+    <p class="small" data-i18n="cantDelete"></p>
+    <button class="btn green block" onclick="shareKeepers()" data-i18n="share"></button>
+    <button class="btn block" onclick="downloadKeepers()" data-i18n="saveDl"></button>
+    <p class="small" data-i18n="thenDelete"></p>
+    <hr style="border:0;border-top:1px solid #eee;margin:16px 0">
+    <p class="small" data-i18n="orDelete"></p>
+    <textarea id="rejList" readonly></textarea>
+    <button class="btn block" id="copyBtn" onclick="copyRej(this)" data-i18n="copyList"></button>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="show('vReview')" data-i18n="backReview"></button>
+      <button class="btn" onclick="if(confirm(t('newConfirm')))location.reload()" data-i18n="newBatch"></button>
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="lb"><div id="lbcap"></div><img id="lbimg" alt=""><div class="lbbar">
+  <button class="btn" onclick="lbStep(-1)">‹</button>
+  <button class="btn" id="lbToggle" onclick="lbToggle()"></button>
+  <button class="btn" onclick="lbStep(1)">›</button>
+  <button class="btn" onclick="closeLb()" data-i18n="close"></button></div></div>
+
+<script>
+'use strict';
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+
+const I18N={
+fr:{langSwitch:'EN',pickTitle:'Choisissez les photos à trier',
+  pickText:'Sélectionnez un lot dans votre galerie (par exemple une journée ou un événement). L’application repère les groupes de photos similaires, présélectionne la plus nette de chaque groupe, et vous confirmez. Tout se passe sur votre téléphone : rien n’est envoyé.',
+  choose:'Choisir des photos',sens:'Degré de ressemblance',loose:'Large (groupes plus grands)',normal:'Normal',strict:'Strict (groupes plus petits)',
+  perRow:'Photos par ligne',keepOpen:'Gardez l’application ouverte pendant l’analyse.',analysing:'Analyse en cours : {i} / {n}',
+  keepAll:'Tout garder',suggestion:'Revenir à la suggestion',prev:'‹ Précédent',next:'Suivant ›',finish:'Terminer ›',
+  group:'Groupe {i} sur {n}',groupInfo:'{n} photos · {k} gardée(s)',KEEP:'GARDER',REMOVE:'RETIRER',sharpest:'la plus nette',
+  only:'Garder celle-ci seule',full:'Agrandir',keepVerb:'Garder',removeVerb:'Retirer',close:'Fermer',
+  doneTitle:'Terminé',summary:'<b>{k}</b> photos gardées, <b>{r}</b> à retirer (sur {n}). Les photos sans photo similaire sont toujours gardées.',
+  cantDelete:'Les applications web ne peuvent pas supprimer de photos de votre galerie. Choisissez comment terminer :',
+  share:'Partager les photos gardées… (Google Photos, Fichiers, Drive)',saveDl:'Enregistrer les photos gardées dans Téléchargements',
+  thenDelete:'Vous pourrez ensuite supprimer le lot d’origine de votre galerie et garder les copies enregistrées.',
+  orDelete:'<b>Ou</b> supprimez vous-même uniquement les photos écartées dans votre galerie. En voici la liste (noms de fichiers) :',
+  copyList:'Copier la liste',copied:'Copié ✓',backReview:'‹ Retour au tri',newBatch:'Nouveau lot',
+  newConfirm:'Commencer un nouveau lot ? Vos choix pour ce lot restent enregistrés.',
+  noGroups:'Aucune photo similaire dans ce lot. Rien à trier.',
+  noShare:'Le partage de fichiers n’est pas pris en charge ici. Utilisez « Enregistrer dans Téléchargements ».',
+  shareFail:'Le partage a échoué : {e}',shareNext:'{i} photos partagées sur {n}. Partager le lot suivant ?',
+  dlConfirm:'Enregistrer {n} photos dans Téléchargements ? Le navigateur peut demander une fois l’autorisation de télécharger plusieurs fichiers.',
+  counter:'{k} gardées · {m} à retirer'},
+en:{langSwitch:'FR',pickTitle:'Pick photos to sort',
+  pickText:'Choose a batch from your gallery (for example one day or one event). The app finds groups of similar shots, pre-selects the sharpest one in each group, and you confirm. Everything runs on your phone, so nothing is uploaded.',
+  choose:'Choose photos',sens:'How similar must shots be?',loose:'Loose (bigger groups)',normal:'Normal',strict:'Strict (smaller groups)',
+  perRow:'Photos shown per row',keepOpen:'Keep the app open while it works.',analysing:'Analysing {i} / {n}',
+  keepAll:'Keep all',suggestion:'Back to suggestion',prev:'‹ Previous',next:'Next ›',finish:'Finish ›',
+  group:'Group {i} of {n}',groupInfo:'{n} photos · keep {k}',KEEP:'KEEP',REMOVE:'MOVE',sharpest:'sharpest',
+  only:'Keep only this',full:'Full',keepVerb:'Keep',removeVerb:'Move',close:'Close',
+  doneTitle:'Done',summary:'<b>{k}</b> photos kept, <b>{r}</b> to remove (out of {n}). Photos without a look-alike are kept automatically.',
+  cantDelete:'Web apps can’t delete photos from your gallery. Choose how to finish:',
+  share:'Share keepers… (to Google Photos, Files, Drive)',saveDl:'Save keepers to Downloads',
+  thenDelete:'Then you can delete the original batch from your gallery and keep the saved copies.',
+  orDelete:'<b>Or</b> delete only the rejects yourself in your gallery. Here is their list (file names):',
+  copyList:'Copy reject list',copied:'Copied ✓',backReview:'‹ Back to review',newBatch:'New batch',
+  newConfirm:'Start a new batch? Current choices for this batch stay saved.',
+  noGroups:'No similar shots found in this batch. Nothing to sort.',
+  noShare:'Sharing files is not supported here. Use "Save keepers to Downloads".',
+  shareFail:'Sharing failed: {e}',shareNext:'Shared {i} of {n}. Share the next batch?',
+  dlConfirm:'Save {n} photos to Downloads? The browser may ask once to allow multiple downloads.',
+  counter:'{k} keep · {m} move'}};
+let LANG='fr';try{const l=localStorage.getItem('pt_lang');if(l==='en'||l==='fr')LANG=l}catch(e){}
+function t(k,v){let s=I18N[LANG][k]??I18N.fr[k]??k;if(v)for(const x in v)s=s.split('{'+x+'}').join(v[x]);return s}
+function applyI18n(){document.documentElement.lang=LANG;
+  document.querySelectorAll('[data-i18n]').forEach(e=>e.innerHTML=t(e.dataset.i18n));
+  $('langBtn').textContent=t('langSwitch');
+  if(!$('vReview').classList.contains('hidden'))renderGroup();
+  if(!$('vDone').classList.contains('hidden'))summary();
+  if(lbOpen())lbShow();updateCount()}
+
+let P=[],G=[],gi=0;
+const move=new Set();
+const SKEY='phototriage_choices_v1';
+let saved={};try{saved=JSON.parse(localStorage.getItem(SKEY)||'{}')}catch(e){}
+function persist(){try{P.forEach(p=>{saved[p.key]=move.has(p.key)?1:0});localStorage.setItem(SKEY,JSON.stringify(saved))}catch(e){}}
+
+const $=id=>document.getElementById(id);
+$('langBtn').onclick=()=>{LANG=LANG==='fr'?'en':'fr';try{localStorage.setItem('pt_lang',LANG)}catch(e){}applyI18n()};
+function show(v){['vStart','vReview','vDone'].forEach(x=>$(x).classList.toggle('hidden',x!==v));window.scrollTo(0,0);if(v==='vDone')summary();if(v==='vReview')renderGroup()}
+document.documentElement.style.setProperty('--cols',2);
+$('cols').onchange=e=>{document.documentElement.style.setProperty('--cols',e.target.value);if(!$('vReview').classList.contains('hidden'))renderGroup()};
+
+// ---------- EXIF capture time ----------
+async function exifTime(file){
+  try{
+    const buf=await file.slice(0,262144).arrayBuffer();const v=new DataView(buf);
+    if(v.byteLength<4||v.getUint16(0)!==0xFFD8)return null;let o=2;
+    while(o<v.byteLength-10){const m=v.getUint16(o);if((m&0xFF00)!==0xFF00)return null;const len=v.getUint16(o+2);
+      if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){const t=o+10;const le=v.getUint16(t)===0x4949;
+        const u16=x=>v.getUint16(x,le),u32=x=>v.getUint32(x,le);
+        const findTag=(ifd,tag)=>{if(t+ifd+2>v.byteLength)return -1;const n=u16(t+ifd);for(let i=0;i<n;i++){const e=t+ifd+2+i*12;if(e+12>v.byteLength)return -1;if(u16(e)===tag)return e}return -1};
+        const readStr=e=>{const cnt=u32(e+4),off=cnt>4?t+u32(e+8):e+8;let s='';for(let i=0;i<cnt-1&&off+i<v.byteLength;i++)s+=String.fromCharCode(v.getUint8(off+i));return s};
+        const ifd0=u32(t+4);let e=findTag(ifd0,0x8769);let s=null,sub=0;
+        if(e>=0){const ex=u32(e+8);const d=findTag(ex,0x9003);if(d>=0)s=readStr(d);const ss=findTag(ex,0x9291);if(ss>=0)sub=parseInt(readStr(ss))||0}
+        if(!s){const d=findTag(ifd0,0x0132);if(d>=0)s=readStr(d)}
+        if(!s)return null;const m2=s.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);if(!m2)return null;
+        return new Date(+m2[1],m2[2]-1,+m2[3],+m2[4],+m2[5],+m2[6]).getTime()/1000+(sub?sub/Math.pow(10,String(sub).length):0);}
+      o+=2+len;}
+  }catch(e){}
+  return null;
+}
+
+// ---------- image features ----------
+const cv=document.createElement('canvas');const cx=cv.getContext('2d',{willReadFrequently:true});
+async function analyse(file){
+  const bmp=await createImageBitmap(file,{resizeWidth:640,resizeQuality:'medium'}).catch(()=>null)
+          || await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=URL.createObjectURL(file)});
+  if(!bmp)return null;
+  const W=bmp.width,H=bmp.height,s=Math.min(1,640/Math.max(W,H)),w=Math.round(W*s),h=Math.round(H*s);
+  cv.width=w;cv.height=h;cx.drawImage(bmp,0,0,w,h);
+  const thumb=await new Promise(r=>cv.toBlob(b=>r(URL.createObjectURL(b)),'image/jpeg',.8));
+  const sw=Math.round(w/2),sh=Math.round(h/2);cv.width=sw;cv.height=sh;cx.drawImage(bmp,0,0,sw,sh);
+  const d=cx.getImageData(0,0,sw,sh).data;const g=new Float32Array(sw*sh);
+  for(let i=0;i<sw*sh;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+  const T=5,tv=[];
+  for(let ty=0;ty<T;ty++)for(let tx=0;tx<T;tx++){let s1=0,s2=0,n=0;
+    for(let y=Math.max(1,Math.floor(ty*sh/T));y<Math.min(sh-1,Math.floor((ty+1)*sh/T));y++)
+      for(let x=Math.max(1,Math.floor(tx*sw/T));x<Math.min(sw-1,Math.floor((tx+1)*sw/T));x++){
+        const k=y*sw+x,l=g[k-1]+g[k+1]+g[k-sw]+g[k+sw]-4*g[k];s1+=l;s2+=l*l;n++}
+    if(n)tv.push(s2/n-(s1/n)**2)}
+  tv.sort((a,b)=>a-b);const sharp=tv[Math.floor(tv.length*.9)]||0;
+  cv.width=9;cv.height=8;cx.drawImage(bmp,0,0,9,8);const q=cx.getImageData(0,0,9,8).data;const hash=[];
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){const a=(y*9+x)*4,b=a+4;hash.push((q[a]+q[a+1]+q[a+2])>(q[b]+q[b+1]+q[b+2])?1:0)}
+  cv.width=32;cv.height=32;cx.drawImage(bmp,0,0,32,32);const c=cx.getImageData(0,0,32,32).data;const hist=new Float32Array(64);
+  for(let i=0;i<1024;i++){hist[(c[i*4]>>6)*16+(c[i*4+1]>>6)*4+(c[i*4+2]>>6)]+=1/1024}
+  if(bmp.close)bmp.close();
+  return {thumb,sharp,hash,hist,portrait:H>W};
+}
+const ham=(a,b)=>{let n=0;for(let i=0;i<64;i++)n+=a[i]!==b[i];return n};
+const hinter=(a,b)=>{let s=0;for(let i=0;i<64;i++)s+=Math.min(a[i],b[i]);return s};
+
+$('file').onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  $('progCard').classList.remove('hidden');P=[];
+  for(let i=0;i<files.length;i++){const f=files[i];
+    $('progTxt').textContent=t('analysing',{i:i+1,n:files.length});$('progBar').style.width=((i+1)/files.length*100)+'%';
+    const tm=(await exifTime(f))??f.lastModified/1000;const a=await analyse(f);
+    if(a)P.push({file:f,name:f.name,key:f.name+'|'+f.size,t:tm,...a});}
+  group();
+};
+
+function group(){
+  const S={loose:{dt:30,h:22,hi:.65},normal:{dt:15,h:18,hi:.72},strict:{dt:6,h:12,hi:.8}}[$('sens').value];
+  P.sort((a,b)=>a.t-b.t);G=[];if(!P.length){location.reload();return}let cur=[0];
+  for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i];const hi=hinter(a.hist,b.hist);
+    const same=(b.t-a.t)<S.dt&&a.portrait===b.portrait&&hi>.45&&(ham(a.hash,b.hash)<=S.h||hi>S.hi);
+    if(same)cur.push(i);else{G.push(cur);cur=[i]}}
+  G.push(cur);G=G.filter(g=>g.length>1);
+  move.clear();
+  G.forEach(g=>{
+    if(g.some(i=>P[i].key in saved)){g.forEach(i=>{if(saved[P[i].key])move.add(P[i].key)})}
+    else suggest(g).forEach(k=>move.add(k));
+  });
+  persist();gi=0;
+  if(!G.length){alert(t('noGroups'));location.reload();return}
+  show('vReview');
+}
+function bestOrder(g){return [...g].sort((a,b)=>P[b].sharp-P[a].sharp)}
+function suggest(g){const ord=bestOrder(g);const keep=new Set([ord[0]]);
+  if(g.length>=8){const sec=ord.find(i=>Math.abs(g.indexOf(i)-g.indexOf(ord[0]))>1);if(sec!==undefined)keep.add(sec)}
+  return g.filter(i=>!keep.has(i)).map(i=>P[i].key)}
+
+function renderGroup(){
+  if(!G.length)return;
+  const g=G[gi];const top=bestOrder(g)[0];
+  $('gTitle').textContent=t('group',{i:gi+1,n:G.length});
+  $('gInfo').textContent=t('groupInfo',{n:g.length,k:g.filter(i=>!move.has(P[i].key)).length});
+  $('prevBtn').disabled=gi===0;$('nextBtn').textContent=gi===G.length-1?t('finish'):t('next');
+  const grid=$('grid');grid.innerHTML='';
+  g.forEach((i,pos)=>{const p=P[i];const m=move.has(p.key);const el=document.createElement('div');el.className='ph'+(m?' move':'');
+    el.innerHTML=`<img src="${p.thumb}" alt=""><span class="tag">${m?t('REMOVE'):t('KEEP')}</span>${i===top?`<span class="best">${t('sharpest')}</span>`:''}
+      <div class="tools"><button data-a="only">${t('only')}</button><button data-a="zoom">${t('full')}</button></div>`;
+    el.onclick=ev=>{const a=ev.target.dataset&&ev.target.dataset.a;
+      if(a==='zoom'){openLb(pos);return}
+      if(a==='only'){g.forEach(j=>move.add(P[j].key));move.delete(p.key)}
+      else{m?move.delete(p.key):move.add(p.key)}
+      persist();renderGroup()};
+    grid.appendChild(el)});
+  updateCount();
+}
+function setGroup(v){G[gi].forEach(i=>v?move.add(P[i].key):move.delete(P[i].key));persist();renderGroup()}
+function resetGroup(){G[gi].forEach(i=>move.delete(P[i].key));suggest(G[gi]).forEach(k=>move.add(k));persist();renderGroup()}
+function go(d){if(d>0&&gi===G.length-1){show('vDone');return}gi=Math.max(0,Math.min(G.length-1,gi+d));renderGroup();window.scrollTo(0,0)}
+function updateCount(){$('hcount').textContent=P.length?t('counter',{k:P.length-move.size,m:move.size}):''}
+
+let lbPos=0,lbUrl=null;
+const lbOpen=()=>$('lb').style.display==='flex';
+function openLb(pos){lbPos=pos;$('lb').style.display='flex';lbShow()}
+function lbShow(){const p=P[G[gi][lbPos]];if(lbUrl)URL.revokeObjectURL(lbUrl);lbUrl=URL.createObjectURL(p.file);$('lbimg').src=lbUrl;
+  const m=move.has(p.key);$('lbcap').textContent=`${lbPos+1} / ${G[gi].length} · ${m?t('REMOVE'):t('KEEP')}`;$('lbToggle').textContent=m?t('keepVerb'):t('removeVerb')}
+function lbStep(d){const n=G[gi].length;lbPos=(lbPos+d+n)%n;lbShow()}
+function lbToggle(){const k=P[G[gi][lbPos]].key;move.has(k)?move.delete(k):move.add(k);persist();lbShow()}
+function closeLb(){$('lb').style.display='none';$('lbimg').src='';if(lbUrl){URL.revokeObjectURL(lbUrl);lbUrl=null}renderGroup()}
+
+const keepers=()=>P.filter(p=>!move.has(p.key));
+function summary(){
+  $('sumTxt').innerHTML=t('summary',{k:keepers().length,r:move.size,n:P.length});
+  $('rejList').value=P.filter(p=>move.has(p.key)).map(p=>p.name).join('\n');updateCount()}
+async function shareKeepers(){
+  const files=keepers().map(p=>p.file);
+  if(!navigator.canShare||!navigator.canShare({files:files.slice(0,1)})){alert(t('noShare'));return}
+  const B=20;
+  for(let i=0;i<files.length;i+=B){const part=files.slice(i,i+B);
+    try{await navigator.share({files:part,title:'Photo Triage'})}catch(e){if(e.name==='AbortError')return;alert(t('shareFail',{e:e.message}));return}
+    if(i+B<files.length&&!confirm(t('shareNext',{i:i+part.length,n:files.length})))return}
+}
+async function downloadKeepers(){
+  const ks=keepers();if(!confirm(t('dlConfirm',{n:ks.length})))return;
+  for(const p of ks){const u=URL.createObjectURL(p.file);const a=document.createElement('a');a.href=u;a.download=p.name;document.body.appendChild(a);a.click();a.remove();
+    await new Promise(r=>setTimeout(r,350));setTimeout(()=>URL.revokeObjectURL(u),60000)}
+}
+function copyRej(b){navigator.clipboard.writeText($('rejList').value).then(()=>b.textContent=t('copied'))}
+
+applyI18n();
+</script>
+</body></html>

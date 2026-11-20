@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photo Triage</title>
+<meta name="description" content="Regroupez les photos similaires, gardez la meilleure, écartez les autres. Tout se passe dans votre navigateur.">
+<link rel="icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif;margin:0;background:#f4f4f2;color:#222}
+a{color:#1d6fe0}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #ddd;padding:10px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;text-decoration:none;color:#222}
+header .logo img{width:28px;height:28px;border-radius:6px}
+header .stat{font-size:14px;color:#555}
+header .spacer{flex:1}
+button,.btn{border:1px solid #bbb;background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:13px;color:#222;text-decoration:none;display:inline-block}
+button:disabled{opacity:.45;cursor:default}
+.primary{background:#1d6fe0;color:#fff;border-color:#1d6fe0}
+.danger{background:#e04646;color:#fff;border-color:#e04646}
+.big{font-size:16px;padding:12px 20px;font-weight:600}
+.hidden{display:none!important}
+.wrap{max-width:860px;margin:30px auto;padding:0 18px}
+.card{background:#fff;border-radius:12px;padding:22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.card h2{margin-top:0}
+.muted{color:#666;font-size:14px;line-height:1.5}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+.steps div{background:#f4f7fc;border-radius:10px;padding:12px;font-size:14px}
+.steps b{display:block;margin-bottom:4px}
+.opts{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:14px}
+.opts select{padding:6px;font-size:14px}
+.bar{height:8px;background:#e3e3e3;border-radius:4px;overflow:hidden;margin-top:10px}.bar div{height:100%;background:#1d6fe0;width:0}
+.banner{background:#fff6d6;border-bottom:1px solid #f0dc8a;padding:10px 18px;font-size:14px}
+.help{font-size:12px;color:#777;width:100%}
+#list{padding-bottom:40px}
+.group{background:#fff;margin:14px 18px;border-radius:10px;padding:10px 12px}
+.group.done{opacity:.55}
+.gh{display:flex;gap:10px;align-items:center;font-size:13px;margin-bottom:8px;flex-wrap:wrap}
+.grid{display:flex;flex-wrap:wrap;gap:8px}
+.ph{position:relative;cursor:pointer;border-radius:6px;overflow:hidden;border:4px solid #2bb24c;background:#eee;line-height:0}
+.ph img{height:var(--h,280px);display:block}
+.ph.move{border-color:#e04646}
+.ph .lab{position:absolute;left:0;bottom:0;right:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:16px;padding:1px 5px;display:flex;justify-content:space-between;gap:6px}
+.ph .lab span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph .zoom{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:24px;width:26px;text-align:center;border-radius:4px}
+.ph .best{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;line-height:18px;padding:0 6px;border-radius:4px}
+#lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:10;align-items:center;justify-content:center;flex-direction:column}
+#lb img{max-width:96vw;max-height:88vh}
+#lb .cap{color:#fff;margin-top:8px;font-size:14px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:11;display:flex;align-items:center;justify-content:center}
+.modal .card{width:min(620px,92vw);max-height:88vh;overflow:auto}
+textarea{width:100%;height:150px;font-family:monospace;font-size:12px}
+footer{text-align:center;font-size:12px;color:#888;padding:20px}
+</style>
+</head><body>
+
+<div class="banner hidden" id="mobileBanner" data-i18n="mobileBanner"></div>
+
+<header>
+  <a class="logo" href="./"><img src="icon-192.png" alt="">Photo Triage</a>
+  <span class="stat" id="stat"></span>
+  <span class="spacer"></span>
+  <span id="reviewTools" class="hidden" style="display:flex;gap:10px;align-items:center">
+    <label class="stat"><span data-i18n="size"></span> <input type="range" id="sz" min="150" max="560" step="10"></label>
+    <button id="fbtn"></button>
+    <button class="primary" id="finishBtn" data-i18n="finish"></button>
+  </span>
+  <a class="btn" href="download/" data-i18n="phoneApp"></a>
+  <button id="langBtn"></button>
+</header>
+
+<!-- START -->
+<section id="vStart">
+  <div class="wrap">
+    <div class="card">
+      <h2 data-i18n="heroTitle"></h2>
+      <p class="muted" data-i18n="heroText"></p>
+      <div class="steps">
+        <div><b data-i18n="s1t"></b><span data-i18n="s1"></span></div>
+        <div><b data-i18n="s2t"></b><span data-i18n="s2"></span></div>
+        <div><b data-i18n="s3t"></b><span data-i18n="s3"></span></div>
+      </div>
+      <button class="primary big" id="openFolderBtn" data-i18n="openFolder"></button>
+      <span id="fallbackBox">
+        <label class="btn big" style="margin-left:6px"><span data-i18n="selectFolder"></span><input type="file" id="dirPick" webkitdirectory multiple class="hidden"></label>
+        <label class="btn big"><span data-i18n="selectPhotos"></span><input type="file" id="filePick" multiple accept="image/*" class="hidden"></label>
+      </span>
+      <p class="muted" id="browserNote"></p>
+      <div class="opts">
+        <label><span data-i18n="sens"></span>
+          <select id="sens"><option value="loose" data-i18n="loose"></option><option value="normal" selected data-i18n="normal"></option><option value="strict" data-i18n="strict"></option></select></label>
+        <label><span data-i18n="keepBig"></span>
+          <select id="keepBig"><option value="1" data-i18n="keep1"></option><option value="2" selected data-i18n="keep2"></option></select></label>
+      </div>
+    </div>
+    <div class="card hidden" id="progCard"><b id="progTxt"></b><div class="bar"><div id="progBar"></div></div>
+      <p class="muted" data-i18n="progWait"></p></div>
+  </div>
+</section>
+
+<!-- REVIEW -->
+<section id="vReview" class="hidden">
+  <div class="help" style="padding:10px 18px 0" data-i18n="help"></div>
+  <div id="list"></div>
+</section>
+
+<div id="lb"><img id="lbimg" alt=""><div class="cap" id="lbcap"></div></div>
+<div id="modal" class="modal hidden"><div class="card" id="modalBody"></div></div>
+
+<footer data-i18n="footer"></footer>
+
+<!-- Image analysis code, shared by the Web Workers and the single-thread fallback -->
+<script type="text/plain" id="core">
+async function exifTime(file){
+  try{
+    const buf=await file.slice(0,262144).arrayBuffer();const v=new DataView(buf);
+    if(v.byteLength<4||v.getUint16(0)!==0xFFD8)return null;let o=2;
+    while(o<v.byteLength-10){const m=v.getUint16(o);if((m&0xFF00)!==0xFF00)return null;const len=v.getUint16(o+2);
+      if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){const t=o+10;const le=v.getUint16(t)===0x4949;
+        const u16=x=>v.getUint16(x,le),u32=x=>v.getUint32(x,le);
+        const findTag=(ifd,tag)=>{if(t+ifd+2>v.byteLength)return -1;const n=u16(t+ifd);for(let i=0;i<n;i++){const e=t+ifd+2+i*12;if(e+12>v.byteLength)return -1;if(u16(e)===tag)return e}return -1};
+        const readStr=e=>{const cnt=u32(e+4),off=cnt>4?t+u32(e+8):e+8;let s='';for(let i=0;i<cnt-1&&off+i<v.byteLength;i++)s+=String.fromCharCode(v.getUint8(off+i));return s};
+        const ifd0=u32(t+4);let e=findTag(ifd0,0x8769);let s=null,sub=0;
+        if(e>=0){const ex=u32(e+8);const d=findTag(ex,0x9003);if(d>=0)s=readStr(d);const ss=findTag(ex,0x9291);if(ss>=0)sub=parseInt(readStr(ss))||0}
+        if(!s){const d=findTag(ifd0,0x0132);if(d>=0)s=readStr(d)}
+        if(!s)return null;const m2=s.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);if(!m2)return null;
+        return new Date(+m2[1],m2[2]-1,+m2[3],+m2[4],+m2[5],+m2[6]).getTime()/1000+(sub?sub/Math.pow(10,String(sub).length):0);}
+      o+=2+len;}
+  }catch(e){}
+  return null;
+}
+function mkCanvas(w,h){if(typeof OffscreenCanvas!=='undefined')return new OffscreenCanvas(w,h);const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+function canvasBlob(c){return c.convertToBlob?c.convertToBlob({type:'image/jpeg',quality:.82}):new Promise(r=>c.toBlob(r,'image/jpeg',.82))}
+async function decode(file){
+  let b=null;
+  try{b=await createImageBitmap(file,{resizeWidth:900,resizeQuality:'medium'})}catch(e){}
+  if(!b){try{b=await createImageBitmap(file)}catch(e){}}
+  return b;
+}
+async function analyse(file){
+  const t=await exifTime(file);
+  const bmp=await decode(file);if(!bmp)return null;
+  const W=bmp.width,H=bmp.height,s=Math.min(1,720/Math.max(W,H));
+  const w=Math.max(1,Math.round(W*s)),h=Math.max(1,Math.round(H*s));
+  const c1=mkCanvas(w,h);c1.getContext('2d').drawImage(bmp,0,0,w,h);
+  const thumb=await canvasBlob(c1);
+  const sw=Math.max(8,Math.round(w/2)),sh=Math.max(8,Math.round(h/2));
+  const c2=mkCanvas(sw,sh);const x2=c2.getContext('2d',{willReadFrequently:true});x2.drawImage(bmp,0,0,sw,sh);
+  const d=x2.getImageData(0,0,sw,sh).data;const g=new Float32Array(sw*sh);
+  for(let i=0;i<sw*sh;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+  const T=6,tv=[];
+  for(let ty=0;ty<T;ty++)for(let tx=0;tx<T;tx++){let s1=0,s2=0,n=0;
+    for(let y=Math.max(1,Math.floor(ty*sh/T));y<Math.min(sh-1,Math.floor((ty+1)*sh/T));y++)
+      for(let x=Math.max(1,Math.floor(tx*sw/T));x<Math.min(sw-1,Math.floor((tx+1)*sw/T));x++){
+        const k=y*sw+x,l=g[k-1]+g[k+1]+g[k-sw]+g[k+sw]-4*g[k];s1+=l;s2+=l*l;n++}
+    if(n)tv.push(s2/n-(s1/n)**2)}
+  tv.sort((a,b)=>a-b);const sharp=tv[Math.floor(tv.length*.9)]||0;
+  const c3=mkCanvas(9,8);const x3=c3.getContext('2d',{willReadFrequently:true});x3.drawImage(bmp,0,0,9,8);
+  const q=x3.getImageData(0,0,9,8).data;const hash=[];
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){const a=(y*9+x)*4,b=a+4;hash.push((q[a]+q[a+1]+q[a+2])>(q[b]+q[b+1]+q[b+2])?1:0)}
+  const c4=mkCanvas(32,32);const x4=c4.getContext('2d',{willReadFrequently:true});x4.drawImage(bmp,0,0,32,32);
+  const c=x4.getImageData(0,0,32,32).data;const hist=new Array(64).fill(0);
+  for(let i=0;i<1024;i++){hist[(c[i*4]>>6)*16+(c[i*4+1]>>6)*4+(c[i*4+2]>>6)]+=1/1024}
+  if(bmp.close)bmp.close();
+  return {t,thumb,sharp,hash,hist,portrait:H>W};
+}
+</script>
+
+<script>
+'use strict';
+// ---------- translations (French by default) ----------
+const I18N={
+fr:{
+  title:'Photo Triage – faites le tri dans vos photos similaires',
+  mobileBanner:'📱 Sur un téléphone ? <a href="download/">Téléchargez l’application mobile</a>. Cette page est conçue pour les ordinateurs.',
+  size:'Taille des photos',hideReviewed:'Masquer les groupes vérifiés',showReviewed:'Afficher les groupes vérifiés',finish:'Terminer →',
+  phoneApp:'📱 Appli mobile',langSwitch:'English',
+  heroTitle:'Faites le tri dans vos photos similaires en quelques minutes',
+  heroText:'Photo Triage repère les rafales et les photos presque identiques, présélectionne la plus nette de chaque groupe, et vous laisse confirmer en un clic. <b>Tout se passe dans votre navigateur : vos photos ne sont jamais envoyées sur Internet.</b>',
+  s1t:'1. Ouvrez un dossier',s1:'Choisissez le dossier qui contient vos photos.',
+  s2t:'2. Vérifiez les groupes',s2:'Vert = garder, rouge = retirer. Changez ce que vous voulez d’un clic.',
+  s3t:'3. Terminez',s3:'Les photos écartées sont déplacées dans un sous-dossier <code>_Rejected</code>. Rien n’est supprimé.',
+  openFolder:'Ouvrir un dossier…',selectFolder:'Choisir un dossier',selectPhotos:'Choisir des photos',
+  noteFSA:'Fonctionne au mieux dans Chrome ou Edge. Votre navigateur vous demandera l’autorisation de lire le dossier, puis de déplacer les photos écartées.',
+  noteNoFSA:'Astuce : dans <b>Chrome</b> ou <b>Edge</b>, l’application peut déplacer elle-même les photos écartées dans un dossier <code>_Rejected</code>. Dans ce navigateur, vous obtiendrez la liste des fichiers à retirer vous-même.',
+  sens:'Degré de ressemblance',loose:'Large (groupes plus grands)',normal:'Normal',strict:'Strict (groupes plus petits)',
+  keepBig:'Dans les groupes de 8 photos ou plus, garder',keep1:'1 photo',keep2:'2 photos',
+  progWait:'Les gros dossiers prennent quelques minutes. Gardez cet onglet ouvert.',
+  analysing:'Analyse en cours : {i} / {n}',
+  help:'Vert = garder, rouge = retirer. <b>Clic</b> sur une photo pour changer · <b>Maj+clic</b> = ne garder que celle-ci · 🔍 = taille réelle (←/→ pour naviguer, K pour changer, Échap pour fermer) · <b>Marquer comme vérifié</b> replie le groupe. Vos choix sont enregistrés dans ce navigateur. Les photos sans photo similaire sont toujours gardées.',
+  footer:'Photo Triage fonctionne à 100 % dans votre navigateur. Aucun envoi, aucun compte. · <a href="download/">Appli Android &amp; iPhone</a>',
+  noPhotos:'Aucune photo trouvée ici.',noGroups:'Aucune photo similaire parmi {n} photos. Rien à trier.',
+  stat:'{n} photos · {g} groupes · {d} vérifiés · {m} à retirer',
+  group:'Groupe {i} / {n}',groupInfo:'{n} photos · {k} gardée(s)',
+  keepAll:'Tout garder',suggestion:'Revenir à la suggestion',markDone:'Marquer comme vérifié',undoDone:'Vérifié ✓ (annuler)',
+  sharpest:'la plus nette',sharp:'netteté {n}',KEEP:'GARDER',REMOVE:'RETIRER',
+  lbHelp:'(←/→ naviguer · K changer · Échap fermer)',
+  finishTitle:'Terminer',summary:'<b>{k}</b> photos gardées, <b>{r}</b> à retirer',skipped:' · {n} fichiers illisibles laissés de côté',
+  moveBtn:'Déplacer {n} photos dans « _Rejected »',
+  moveNote:'Elles vont dans un sous-dossier <code>_Rejected</code> de « {d} ». Rien n’est supprimé : vous pouvez les remettre à tout moment. Votre navigateur vous demandera l’autorisation de modifier le dossier.',
+  cantMove:'Ce navigateur ne peut pas déplacer de fichiers. Utilisez la liste ci-dessous pour les retirer vous-même, ou ouvrez le dossier dans Chrome ou Edge pour qu’ils soient déplacés automatiquement.',
+  nothing:'Aucune photo à retirer.',listLabel:'Liste des photos à retirer :',
+  dlList:'Télécharger la liste (.txt)',cpList:'Copier la liste',copied:'Copié ✓',close:'Fermer',listFile:'photos-a-retirer.txt',
+  permRefused:'Autorisation refusée. Aucune photo n’a été déplacée.',permErr:'Impossible d’obtenir l’autorisation : {e}',
+  moving:'Déplacement : {i} / {n}…',movedOk:'✅ {n} photos déplacées dans <code>_Rejected</code>.',
+  movedFail:' ⚠️ {n} n’ont pas pu être déplacées : {list}',done:'Terminé'
+},
+en:{
+  title:'Photo Triage – find and remove similar photos',
+  mobileBanner:'📱 On a phone? <a href="download/">Get the mobile app</a>. This page is made for computers.',
+  size:'Photo size',hideReviewed:'Hide reviewed',showReviewed:'Show reviewed',finish:'Finish →',
+  phoneApp:'📱 Phone app',langSwitch:'Français',
+  heroTitle:'Clean up similar photos in minutes',
+  heroText:'Photo Triage finds bursts and near-duplicate shots, pre-selects the sharpest photo of each group, and lets you confirm with one click. <b>Everything happens in your browser: your photos are never uploaded.</b>',
+  s1t:'1. Open a folder',s1:'Pick the folder with your photos.',
+  s2t:'2. Review the groups',s2:'Green = keep, red = remove. Change anything with a click.',
+  s3t:'3. Finish',s3:'Rejects are moved to a <code>_Rejected</code> subfolder. Nothing is deleted.',
+  openFolder:'Open a folder…',selectFolder:'Select a folder',selectPhotos:'Select photos',
+  noteFSA:'Works best in Chrome or Edge. Your browser will ask for permission to read the folder, and later to move the rejected photos.',
+  noteNoFSA:'Tip: in <b>Chrome</b> or <b>Edge</b> the app can move rejected photos into a <code>_Rejected</code> folder for you. In this browser you will get a list of files to remove yourself.',
+  sens:'How similar must shots be?',loose:'Loose (bigger groups)',normal:'Normal',strict:'Strict (smaller groups)',
+  keepBig:'In groups of 8+ photos keep',keep1:'1 photo',keep2:'2 photos',
+  progWait:'Large folders take a few minutes. Keep this tab open.',
+  analysing:'Analysing {i} / {n}',
+  help:'Green = keep, red = remove. <b>Click</b> a photo to toggle · <b>Shift+click</b> = keep only this one · 🔍 = full size (←/→ browse, K toggle, Esc close) · <b>Mark reviewed</b> collapses a group. Your choices are saved in this browser. Photos without a look-alike are always kept.',
+  footer:'Photo Triage runs 100% in your browser. No uploads, no account. · <a href="download/">Android &amp; iPhone app</a>',
+  noPhotos:'No photos found there.',noGroups:'No similar shots found among {n} photos. Nothing to sort.',
+  stat:'{n} photos · {g} groups · {d} reviewed · {m} to remove',
+  group:'Group {i} / {n}',groupInfo:'{n} photos · keeping {k}',
+  keepAll:'Keep all',suggestion:'Back to suggestion',markDone:'Mark reviewed',undoDone:'Reviewed ✓ (undo)',
+  sharpest:'sharpest',sharp:'sharp {n}',KEEP:'KEEP',REMOVE:'REMOVE',
+  lbHelp:'(←/→ browse · K toggle · Esc close)',
+  finishTitle:'Finish',summary:'<b>{k}</b> photos kept, <b>{r}</b> to remove',skipped:' · {n} files could not be read and were left alone',
+  moveBtn:'Move {n} photos to “_Rejected”',
+  moveNote:'They go into a <code>_Rejected</code> subfolder of “{d}”. Nothing is deleted, so you can drag them back any time. Your browser will ask for permission to edit the folder.',
+  cantMove:'This browser can’t move files. Use the list below to remove them yourself, or open the folder in Chrome or Edge to have them moved automatically.',
+  nothing:'Nothing marked to remove.',listLabel:'List of photos to remove:',
+  dlList:'Download list (.txt)',cpList:'Copy list',copied:'Copied ✓',close:'Close',listFile:'photos-to-remove.txt',
+  permRefused:'Permission refused. Nothing was moved.',permErr:'Could not get permission: {e}',
+  moving:'Moving {i} / {n}…',movedOk:'✅ {n} photos moved to <code>_Rejected</code>.',
+  movedFail:' ⚠️ {n} could not be moved: {list}',done:'Done'
+}};
+let LANG='fr';try{const l=localStorage.getItem('pt_lang');if(l==='en'||l==='fr')LANG=l}catch(e){}
+function t(k,v){let s=I18N[LANG][k]??I18N.fr[k]??k;if(v)for(const x in v)s=s.split('{'+x+'}').join(v[x]);return s}
+function applyI18n(){
+  document.documentElement.lang=LANG;document.title=t('title');
+  document.querySelectorAll('[data-i18n]').forEach(e=>e.innerHTML=t(e.dataset.i18n));
+  $('langBtn').textContent=t('langSwitch');$('fbtn').textContent=hide?t('showReviewed'):t('hideReviewed');
+  $('browserNote').innerHTML=hasFSA?t('noteFSA'):t('noteNoFSA');
+  if(!$('vReview').classList.contains('hidden'))renderAll();else stat();
+}
+
+const $=id=>document.getElementById(id);
+const IMG_RE=/\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i;
+const SKEY='phototriage_web_v1';
+let st={m:{},d:{}};try{const x=JSON.parse(localStorage.getItem(SKEY)||'null');if(x&&x.m&&x.d)st=x}catch(e){}
+function save(){try{localStorage.setItem(SKEY,JSON.stringify(st))}catch(e){}stat()}
+
+let dirHandle=null;   // set when the folder was opened with the File System Access API
+let PH=[],G=[],skipped=0,hide=false;
+const isMove=k=>st.m[k]===1;
+const hasFSA='showDirectoryPicker' in window;
+
+$('langBtn').onclick=()=>{LANG=LANG==='fr'?'en':'fr';try{localStorage.setItem('pt_lang',LANG)}catch(e){}applyI18n()};
+
+// ---------- start screen ----------
+if(!hasFSA)$('openFolderBtn').classList.add('hidden');else $('fallbackBox').classList.add('hidden');
+if(matchMedia('(pointer:coarse)').matches&&innerWidth<820)$('mobileBanner').classList.remove('hidden');
+let size=280;try{size=localStorage.getItem('phototriage_size')||280}catch(e){}
+document.documentElement.style.setProperty('--h',size+'px');$('sz').value=size;
+$('sz').oninput=e=>{document.documentElement.style.setProperty('--h',e.target.value+'px');try{localStorage.setItem('phototriage_size',e.target.value)}catch(x){}};
+
+$('openFolderBtn').onclick=async()=>{
+  try{dirHandle=await window.showDirectoryPicker({id:'phototriage',mode:'read'})}catch(e){return}
+  const items=[];
+  for await(const [name,h] of dirHandle.entries()){if(h.kind==='file'&&IMG_RE.test(name))items.push({name,handle:h})}
+  const files=[];for(const it of items){try{files.push({name:it.name,handle:it.handle,file:await it.handle.getFile()})}catch(e){}}
+  run(files);
+};
+$('dirPick').onchange=e=>{dirHandle=null;
+  const files=[...e.target.files].filter(f=>IMG_RE.test(f.name)&&(f.webkitRelativePath||'').split('/').length<=2).map(f=>({name:f.name,file:f}));run(files)};
+$('filePick').onchange=e=>{dirHandle=null;run([...e.target.files].filter(f=>IMG_RE.test(f.name)||f.type.startsWith('image/')).map(f=>({name:f.name,file:f})))};
+
+// ---------- analysis (parallel Web Workers when available) ----------
+const CORE=$('core').textContent;
+let mainAnalyse=null;
+function makePool(){
+  if(typeof Worker==='undefined'||typeof OffscreenCanvas==='undefined')return null;
+  try{
+    const url=URL.createObjectURL(new Blob([CORE+'\nself.onmessage=async e=>{let r=null;try{r=await analyse(e.data.file)}catch(err){}self.postMessage({i:e.data.i,r});};'],{type:'text/javascript'}));
+    const n=Math.max(1,Math.min(4,(navigator.hardwareConcurrency||2)-1));
+    return Array.from({length:n},()=>new Worker(url));
+  }catch(e){return null}
+}
+async function run(files){
+  if(!files.length){alert(t('noPhotos'));return}
+  $('progCard').classList.remove('hidden');$('openFolderBtn').disabled=true;
+  PH.forEach(p=>URL.revokeObjectURL(p.url));PH=[];skipped=0;
+  const out=new Array(files.length);let done=0;
+  const tick=()=>{done++;$('progTxt').textContent=t('analysing',{i:done,n:files.length});$('progBar').style.width=(done/files.length*100)+'%'};
+  $('progTxt').textContent=t('analysing',{i:0,n:files.length});
+  const store=(i,r)=>{const f=files[i];if(!r){skipped++;return}
+    out[i]={name:f.name,handle:f.handle||null,file:f.file,key:f.name+'|'+f.file.size+'|'+f.file.lastModified,
+      t:r.t??f.file.lastModified/1000,url:URL.createObjectURL(r.thumb),sharp:r.sharp,hash:r.hash,hist:r.hist,portrait:r.portrait}};
+  const pool=makePool();
+  if(pool){
+    await new Promise(resolve=>{let next=0,active=0;
+      const feed=w=>{if(next>=files.length){if(active===0)resolve();return}const i=next++;active++;w.postMessage({i,file:files[i].file})};
+      pool.forEach(w=>{w.onmessage=e=>{active--;store(e.data.i,e.data.r);tick();feed(w)};w.onerror=()=>{};feed(w)});
+    });
+    pool.forEach(w=>w.terminate());
+  }else{
+    if(!mainAnalyse)mainAnalyse=new Function(CORE+'\nreturn analyse;')();
+    for(let i=0;i<files.length;i++){let r=null;try{r=await mainAnalyse(files[i].file)}catch(e){}store(i,r);tick()}
+  }
+  PH=out.filter(Boolean);
+  $('progCard').classList.add('hidden');$('openFolderBtn').disabled=false;
+  group();
+}
+
+// ---------- grouping ----------
+const ham=(a,b)=>{let n=0;for(let i=0;i<64;i++)n+=a[i]!==b[i];return n};
+const hinter=(a,b)=>{let s=0;for(let i=0;i<64;i++)s+=Math.min(a[i],b[i]);return s};
+function group(){
+  const S={loose:{dt:30,h:22,hi:.65},normal:{dt:15,h:18,hi:.72},strict:{dt:6,h:12,hi:.8}}[$('sens').value];
+  PH.sort((a,b)=>a.t-b.t||a.name.localeCompare(b.name));G=[];
+  if(PH.length){let cur=[0];
+    for(let i=1;i<PH.length;i++){const a=PH[i-1],b=PH[i];const hi=hinter(a.hist,b.hist);
+      if((b.t-a.t)<S.dt&&a.portrait===b.portrait&&hi>.45&&(ham(a.hash,b.hash)<=S.h||hi>S.hi))cur.push(i);else{G.push(cur);cur=[i]}}
+    G.push(cur)}
+  G=G.filter(g=>g.length>1);
+  G.forEach(g=>{if(!g.some(i=>PH[i].key in st.m))applySuggestion(g)});
+  save();
+  if(!G.length){alert(t('noGroups',{n:PH.length}));show('vStart');return}
+  show('vReview');renderAll();
+}
+function order(g){return [...g].sort((a,b)=>PH[b].sharp-PH[a].sharp)}
+function applySuggestion(g){const o=order(g);const keep=new Set([o[0]]);
+  if(g.length>=8&&$('keepBig').value==='2'){const p0=g.indexOf(o[0]);const sec=o.find(i=>Math.abs(g.indexOf(i)-p0)>1);if(sec!==undefined)keep.add(sec)}
+  g.forEach(i=>{st.m[PH[i].key]=keep.has(i)?0:1})}
+const gkey=gi=>PH[G[gi][0]].key;
+
+// ---------- review ----------
+function show(v){['vStart','vReview'].forEach(x=>$(x).classList.toggle('hidden',x!==v));$('reviewTools').classList.toggle('hidden',v!=='vReview');stat()}
+function stat(){if(!PH.length||$('vReview').classList.contains('hidden')){$('stat').textContent='';return}
+  const mv=PH.filter(p=>isMove(p.key)).length,dn=G.filter((g,i)=>st.d[gkey(i)]).length;
+  $('stat').textContent=t('stat',{n:PH.length,g:G.length,d:dn,m:mv})}
+function renderAll(){const L=$('list');L.innerHTML='';G.forEach((g,gi)=>{const el=card(gi);if(el)L.appendChild(el)});stat()}
+function card(gi){
+  const g=G[gi],done=!!st.d[gkey(gi)];if(hide&&done)return null;
+  const d=document.createElement('div');d.className='group'+(done?' done':'');d.id='g'+gi;
+  const keep=g.filter(i=>!isMove(PH[i].key)).length,top=order(g)[0],mx=PH[top].sharp||1;
+  d.innerHTML=`<div class="gh"><b>${t('group',{i:gi+1,n:G.length})}</b><span>${t('groupInfo',{n:g.length,k:keep})}</span>
+    <button data-a="all">${t('keepAll')}</button><button data-a="sug">${t('suggestion')}</button>
+    <button data-a="done">${done?t('undoDone'):t('markDone')}</button></div><div class="grid"></div>`;
+  d.querySelector('[data-a=all]').onclick=()=>{g.forEach(i=>st.m[PH[i].key]=0);save();refresh(gi)};
+  d.querySelector('[data-a=sug]').onclick=()=>{applySuggestion(g);save();refresh(gi)};
+  d.querySelector('[data-a=done]').onclick=()=>{const k=gkey(gi);if(st.d[k])delete st.d[k];else st.d[k]=1;save();
+    if(st.d[k]){if(hide){d.remove()}else refresh(gi);const n=$('g'+(gi+1))||document.querySelector(`#list .group:not(.done)`);if(n)n.scrollIntoView({behavior:'smooth',block:'start'})}else refresh(gi)};
+  const grid=d.querySelector('.grid');
+  g.forEach((i,pos)=>{const p=PH[i];const e=document.createElement('div');e.className='ph'+(isMove(p.key)?' move':'');
+    e.title=p.name;
+    e.innerHTML=`<img loading="lazy" src="${p.url}" alt=""><div class="zoom">🔍</div>${i===top?`<div class="best">${t('sharpest')}</div>`:''}<div class="lab"><span>${esc(p.name)}</span><span>${t('sharp',{n:Math.round(p.sharp/mx*100)})}</span></div>`;
+    e.onclick=ev=>{if(ev.target.classList.contains('zoom')){openLb(gi,pos);return}
+      if(ev.shiftKey)g.forEach(j=>st.m[PH[j].key]=j===i?0:1);else st.m[p.key]=isMove(p.key)?0:1;
+      save();refresh(gi)};
+    grid.appendChild(e)});
+  return d;
+}
+function refresh(gi){const old=$('g'+gi);const nu=card(gi);if(old&&nu)old.replaceWith(nu);else if(old)old.remove();stat()}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+$('fbtn').onclick=()=>{hide=!hide;$('fbtn').textContent=hide?t('showReviewed'):t('hideReviewed');renderAll()};
+
+// ---------- full-size viewer ----------
+let lb=null,lbUrl=null;
+function openLb(gi,pos){lb=[gi,pos];$('lb').style.display='flex';lbShow()}
+function lbShow(){const [gi,pos]=lb,p=PH[G[gi][pos]];if(lbUrl)URL.revokeObjectURL(lbUrl);lbUrl=URL.createObjectURL(p.file);$('lbimg').src=lbUrl;
+  $('lbcap').textContent=`${p.name} — ${pos+1}/${G[gi].length} — ${isMove(p.key)?t('REMOVE'):t('KEEP')}   ${t('lbHelp')}`}
+function closeLb(){$('lb').style.display='none';$('lbimg').src='';if(lbUrl){URL.revokeObjectURL(lbUrl);lbUrl=null}const gi=lb[0];lb=null;refresh(gi)}
+$('lb').onclick=e=>{if(e.target.id==='lb')closeLb()};
+document.addEventListener('keydown',e=>{if(!lb)return;const n=G[lb[0]].length;
+  if(e.key==='Escape')closeLb();else if(e.key==='ArrowRight'){lb[1]=(lb[1]+1)%n;lbShow()}else if(e.key==='ArrowLeft'){lb[1]=(lb[1]-1+n)%n;lbShow()}
+  else if(e.key==='k'||e.key==='K'){const k=PH[G[lb[0]][lb[1]]].key;st.m[k]=isMove(k)?0:1;save();lbShow()}});
+
+// ---------- finish ----------
+const rejects=()=>PH.filter(p=>isMove(p.key));
+function modal(html){$('modalBody').innerHTML=html;$('modal').classList.remove('hidden')}
+function closeModal(){$('modal').classList.add('hidden')}
+$('modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
+$('finishBtn').onclick=()=>{
+  const r=rejects();const names=r.map(p=>p.name).join('\n');
+  const canMove=!!(dirHandle&&r.length&&r.every(p=>p.handle));
+  modal(`<h2>${t('finishTitle')}</h2><p>${t('summary',{k:PH.length-r.length,r:r.length})}${skipped?t('skipped',{n:skipped}):''}.</p>
+    ${canMove?`<button class="danger big" id="mvBtn">${t('moveBtn',{n:r.length})}</button>
+      <p class="muted">${t('moveNote',{d:esc(dirHandle.name)})}</p>
+      <div class="bar hidden" id="mvBar"><div></div></div><p class="muted" id="mvTxt"></p>`
+    :`<p class="muted">${r.length?t('cantMove'):t('nothing')}</p>`}
+    <p class="muted">${t('listLabel')}</p><textarea readonly id="rejTxt">${esc(names)}</textarea>
+    <p><button id="dlList">${t('dlList')}</button> <button id="cpList">${t('cpList')}</button> <button id="closeM">${t('close')}</button></p>`);
+  $('closeM').onclick=closeModal;
+  $('cpList').onclick=e=>{navigator.clipboard.writeText(names).then(()=>e.target.textContent=t('copied'))};
+  $('dlList').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([names+'\n'],{type:'text/plain'}));a.download=t('listFile');a.click()};
+  if(canMove)$('mvBtn').onclick=()=>moveRejects(r);
+};
+
+async function moveRejects(list){
+  const btn=$('mvBtn');btn.disabled=true;
+  try{if((await dirHandle.requestPermission({mode:'readwrite'}))!=='granted'){$('mvTxt').textContent=t('permRefused');btn.disabled=false;return}}
+  catch(e){$('mvTxt').textContent=t('permErr',{e:e.message});btn.disabled=false;return}
+  const rej=await dirHandle.getDirectoryHandle('_Rejected',{create:true});
+  const exists=async n=>{try{await rej.getFileHandle(n);return true}catch(e){return false}};
+  $('mvBar').classList.remove('hidden');const moved=[],failed=[];
+  for(let i=0;i<list.length;i++){const p=list[i];
+    try{
+      let target=p.name;if(await exists(target)){const dot=target.lastIndexOf('.');let k=2;
+        do{target=(dot>0?p.name.slice(0,dot):p.name)+`_${k}`+(dot>0?p.name.slice(dot):'');k++}while(await exists(target))}
+      let ok=false;
+      if(typeof p.handle.move==='function'){try{await p.handle.move(rej,target);ok=true}catch(e){}}
+      if(!ok){const src=await p.handle.getFile();const nh=await rej.getFileHandle(target,{create:true});
+        const w=await nh.createWritable();await w.write(src);await w.close();
+        if((await nh.getFile()).size!==src.size)throw new Error('copy check failed');
+        await dirHandle.removeEntry(p.name)}
+      moved.push(target);
+    }catch(e){failed.push(p.name)}
+    $('mvBar').firstElementChild.style.width=((i+1)/list.length*100)+'%';$('mvTxt').textContent=t('moving',{i:i+1,n:list.length});
+  }
+  try{const lh=await rej.getFileHandle('_moved_list.txt',{create:true});let prev='';try{prev=await (await lh.getFile()).text()}catch(e){}
+    const w=await lh.createWritable();await w.write(prev+moved.join('\n')+'\n');await w.close()}catch(e){}
+  const gone=new Set(list.filter(p=>!failed.includes(p.name)).map(p=>p.key));
+  PH=PH.filter(p=>!gone.has(p.key));gone.forEach(k=>delete st.m[k]);save();
+  $('mvTxt').innerHTML=t('movedOk',{n:moved.length})+(failed.length?t('movedFail',{n:failed.length,list:esc(failed.slice(0,10).join(', '))+(failed.length>10?'…':'')}):'');
+  btn.textContent=t('done');
+  // Rebuild the view with what is left in the folder
+  setTimeout(()=>{closeModal();if(PH.length){group()}else{show('vStart')}},failed.length?6000:2500);
+}
+
+applyI18n();
+</script>
+</body></html>

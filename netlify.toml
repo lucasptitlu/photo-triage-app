@@ -1,0 +1,14 @@
+# Netlify serves only the "web" folder. No build step is needed.
+[build]
+  publish = "web"
+
+[[headers]]
+  for = "/download/*.apk"
+  [headers.values]
+    Content-Type = "application/vnd.android.package-archive"
+    Content-Disposition = "attachment; filename=PhotoTriage.apk"
+
+[[headers]]
+  for = "/mobile/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
